@@ -1,0 +1,174 @@
+<!doctype html>
+<!--
+  The code-health rules page (2026-11-18): one standalone page that draws whatever rules.json beside it
+  says, so anyone can hand an AI the sample JSON and get the same page for their own rules.
+  - rules.json beside this file, or another address with ?src=other.json
+  - opened straight from the disk (file://), a browser will not let it read a file: choose or drop the JSON
+  The JSON's shape is in README.md. The page types no word of its own: every word comes from the JSON,
+  except the few it needs before the JSON is there (WORDS, below).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="tokens.css">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ds-page); color: var(--ds-ink); font-family: var(--ds-font-sans); font-size: var(--ds-text-base); }
+  .page { max-width: 1366px; margin: 0 auto; padding: var(--ds-space-10) var(--ds-space-12) var(--ds-space-16); display: flex; flex-direction: column; gap: var(--ds-space-6); }
+  .head { display: flex; flex-direction: column; gap: var(--ds-space-2); }
+  .eyebrow { font-size: var(--ds-text-xs); letter-spacing: var(--ds-tracking-label); text-transform: uppercase; color: var(--ds-ink-2); font-weight: var(--ds-weight-semibold); }
+  h1 { margin: 0; font-size: var(--ds-text-3xl); font-weight: var(--ds-weight-semibold); }
+  .lead { margin: 0; max-width: var(--ds-layout-narrow); font-size: var(--ds-text-base); color: var(--ds-ink-2); }
+  .tags { display: flex; gap: var(--ds-space-2); flex-wrap: wrap; padding-top: var(--ds-space-1); }
+  .pill { display: inline-flex; align-items: center; gap: var(--ds-space-1_5); padding: var(--ds-space-1) var(--ds-space-2_5); border-radius: var(--ds-radius-pill); font-size: var(--ds-text-xs); font-weight: var(--ds-weight-semibold); }
+  .tone-good { background: var(--ds-good-soft); color: var(--ds-good); }
+  .tone-info { background: var(--ds-info-soft); color: var(--ds-info); }
+  .tone-warn { background: var(--ds-warn-soft); color: var(--ds-warn); }
+  .tone-danger { background: var(--ds-danger-soft); color: var(--ds-danger); }
+  .tone-neutral { background: var(--ds-surface-2); color: var(--ds-ink-2); }
+  .rules { display: flex; flex-direction: column; gap: var(--ds-space-4); }
+  .card { background: var(--ds-surface); border: var(--ds-hairline) solid var(--ds-line); border-radius: var(--ds-radius-xl); box-shadow: var(--ds-shadow); padding: var(--ds-space-5); }
+  .rule { display: grid; grid-template-columns: 300px minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto 1fr; column-gap: var(--ds-space-5); row-gap: var(--ds-space-2); }
+  .rule-name { grid-column: 1; grid-row: 1; display: flex; align-items: center; gap: var(--ds-space-3); }
+  .rule-words { grid-column: 1; grid-row: 2; margin: 0; font-size: var(--ds-text-sm); color: var(--ds-ink-2); }
+  .rule-fail { grid-column: 2; grid-row: 1 / span 2; }
+  .rule-pass { grid-column: 3; grid-row: 1 / span 2; }
+  .num { width: var(--ds-space-8); height: var(--ds-space-8); flex: none; border-radius: var(--ds-radius-sm); background: var(--ds-surface-2); display: flex; align-items: center; justify-content: center; font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold); color: var(--ds-ink-2); }
+  h2 { margin: 0; flex: 1; font-size: var(--ds-text-lg); font-weight: var(--ds-weight-semibold); }
+  .mono { font-family: var(--ds-font-mono); font-size: var(--ds-text-xs); color: var(--ds-ink-2); }
+  .panel { background: var(--ds-surface-2); border: var(--ds-hairline) solid var(--ds-line); border-radius: var(--ds-radius-md); overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
+  .panel-head { display: flex; align-items: center; gap: var(--ds-space-2); padding: var(--ds-space-2_5) var(--ds-space-3) 0; flex-wrap: wrap; }
+  .code { margin: 0; padding: var(--ds-space-2) 0; font-family: var(--ds-font-mono); font-size: var(--ds-text-xs); line-height: var(--ds-space-5); color: var(--ds-ink); white-space: pre; overflow-x: auto; }
+  .code .l { display: block; padding: 0 var(--ds-space-3); min-height: var(--ds-space-5); }
+  .code .c { color: var(--ds-ink-2); }
+  .code .bad { background: var(--ds-danger-soft); }
+  .code .ok { background: var(--ds-good-soft); }
+  .msg { margin: 0; padding: var(--ds-space-2) var(--ds-space-3); border-top: var(--ds-hairline) solid var(--ds-line); font-family: var(--ds-font-mono); font-size: var(--ds-text-xs); white-space: pre-wrap; word-break: break-word; }
+  .msg.bad { color: var(--ds-danger); }
+  .msg.ok { color: var(--ds-good); }
+  .skel { background: var(--ds-surface-2); border-radius: var(--ds-radius-md); }
+  .problem { display: flex; align-items: center; gap: var(--ds-space-4); flex-wrap: wrap; }
+  .problem p { flex: 1; margin: 0; font-size: var(--ds-text-sm); color: var(--ds-ink-2); }
+  .drop { border: var(--ds-border-thick) dashed var(--ds-line-strong); }
+  .drop.over { border-color: var(--ds-accent); }
+  button, .button { display: inline-flex; align-items: center; justify-content: center; min-height: var(--ds-tap); min-width: 7.5rem; padding: 0 var(--ds-space-4); border-radius: var(--ds-radius-lg); border: var(--ds-hairline) solid var(--ds-line-strong); background: var(--ds-surface); color: var(--ds-ink); font: inherit; font-size: var(--ds-text-sm); font-weight: var(--ds-weight-medium); line-height: 1; cursor: pointer; }
+  .primary { background: var(--ds-accent); color: var(--ds-accent-ink); border-color: var(--ds-accent); }
+  input[type="file"] { display: none; }
+</style>
+</head>
+<body data-ds-theme="light">
+<main class="page" id="page" aria-busy="true"></main>
+<script>
+// The only words the page needs before (or without) a JSON
+const WORDS = {
+  loading: "Loading the rules",
+  failed: "The rules could not be read",
+  fromDisk: "Opened from the disk, a browser will not let this page read rules.json by itself. Choose the file, or drop it here.",
+  retry: "Retry",
+  choose: "Choose a JSON file",
+  notJson: "That file is not JSON",
+  fail: "Fails",
+  pass: "Passes",
+};
+const TONES = ["good", "info", "warn", "danger", "neutral"];
+const page = document.getElementById("page");
+const src = new URLSearchParams(location.search).get("src") || "rules.json";
+
+/** An element with a class, its text (always as text, never as HTML) and its children */
+function el(tag, cls, text, ...kids) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null && text !== "") e.textContent = text;
+  for (const k of kids) if (k) e.append(k);
+  return e;
+}
+
+function icon(kind) {
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  for (const [k, v] of Object.entries({ width: "12", height: "12", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "2.5", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" })) svg.setAttribute(k, v);
+  const path = document.createElementNS(ns, "path");
+  path.setAttribute("d", kind === "pass" ? "M20 6 9 17l-5-5" : "M18 6 6 18M6 6l12 12");
+  svg.append(path);
+  return svg;
+}
+
+function codeBlock(lines) {
+  const pre = el("pre", "code");
+  for (const line of lines || []) {
+    const mark = line.mark === "bad" ? " bad" : line.mark === "ok" ? " ok" : "";
+    const code = line.code || "";
+    const note = line.note ? (code ? "  // " : "// ") + line.note : "";
+    pre.append(el("span", "l" + mark, code, note ? el("span", "c", note) : null));
+  }
+  return pre;
+}
+
+function panel(kind, side, label) {
+  const s = side || {};
+  const head = el("div", "panel-head", null, el("span", "pill " + (kind === "pass" ? "tone-good" : "tone-danger"), null, icon(kind), label), el("span", "mono", s.file));
+  const msg = s.message ? el("p", "msg " + (kind === "pass" ? "ok" : "bad"), s.message) : null;
+  return el("div", "panel rule-" + kind, null, head, codeBlock(s.lines), msg);
+}
+
+function draw(data) {
+  page.replaceChildren();
+  page.removeAttribute("aria-busy");
+  document.title = data.title || document.title;
+  const labels = data.labels || {};
+  const tags = el("div", "tags");
+  for (const t of data.tags || []) tags.append(el("span", "pill tone-" + (TONES.includes(t.tone) ? t.tone : "neutral"), t.label));
+  page.append(el("header", "head", null, el("div", "eyebrow", data.eyebrow), el("h1", null, data.title), el("p", "lead", data.description), tags));
+  const rules = el("div", "rules");
+  (data.rules || []).forEach((r, i) => {
+    const name = el("div", "rule-name", null, el("span", "num", String(i + 1)), el("h2", null, r.name), el("span", "mono", r.limit));
+    rules.append(el("section", "card rule", null, name, el("p", "rule-words", r.description), panel("fail", r.fail, labels.fail || WORDS.fail), panel("pass", r.pass, labels.pass || WORDS.pass)));
+  });
+  page.append(rules);
+}
+
+function skeleton() {
+  page.setAttribute("aria-busy", "true");
+  page.setAttribute("aria-label", WORDS.loading);
+  const bar = (w, h, r) => { const s = el("div", "skel"); s.style.width = w; s.style.height = h; if (r) s.style.borderRadius = r; return s; };
+  page.replaceChildren(bar("200px", "16px"), bar("420px", "36px"), bar("680px", "24px"), bar("100%", "220px", "var(--ds-radius-xl)"), bar("100%", "220px", "var(--ds-radius-xl)"));
+}
+
+function problem(why) {
+  page.removeAttribute("aria-busy");
+  const fromDisk = location.protocol === "file:";
+  const input = el("input");
+  input.type = "file";
+  input.accept = "application/json,.json";
+  input.addEventListener("change", () => input.files[0] && readFile(input.files[0]));
+  const choose = el("button", "primary", WORDS.choose);
+  choose.type = "button";
+  choose.addEventListener("click", () => input.click());
+  const retry = el("button", null, WORDS.retry);
+  retry.type = "button";
+  retry.addEventListener("click", load);
+  const box = el("section", "card problem drop", null, el("span", "pill tone-danger", WORDS.failed), el("p", null, fromDisk ? WORDS.fromDisk : why), retry, choose, input);
+  box.setAttribute("role", "alert");
+  box.addEventListener("dragover", (e) => { e.preventDefault(); box.classList.add("over"); });
+  box.addEventListener("dragleave", () => box.classList.remove("over"));
+  box.addEventListener("drop", (e) => { e.preventDefault(); box.classList.remove("over"); const file = e.dataTransfer.files[0]; if (file) readFile(file); });
+  page.replaceChildren(box);
+}
+
+function readFile(file) {
+  file.text().then((t) => { try { draw(JSON.parse(t)); } catch { problem(WORDS.notJson); } });
+}
+
+function load() {
+  skeleton();
+  fetch(src)
+    .then((r) => { if (!r.ok) throw new Error(src + ": HTTP " + r.status); return r.json(); })
+    .then(draw)
+    .catch((e) => problem(String(e.message || e)));
+}
+
+load();
+</script>
+</body>
+</html>

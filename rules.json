@@ -1,0 +1,340 @@
+{
+  "eyebrow": "Code health",
+  "title": "Code stays small and used",
+  "description": "Six checks on every JS and TS file, on every push and before every deploy, in about 5 seconds. Nothing ships past one that fails.",
+  "tags": [
+    {
+      "label": "Blocks",
+      "tone": "good"
+    },
+    {
+      "label": "On push",
+      "tone": "info"
+    },
+    {
+      "label": "On deploy",
+      "tone": "info"
+    }
+  ],
+  "labels": {
+    "fail": "Fails",
+    "pass": "Passes"
+  },
+  "rules": [
+    {
+      "name": "A file stays short",
+      "limit": "≤ 500 lines",
+      "description": "A file that does one thing reads in one sitting. Past 500 lines it is several files sharing a name.",
+      "fail": {
+        "file": "store/InventoryView.tsx",
+        "lines": [
+          {
+            "code": "  1  import { Card, Table } from \"./ui\";"
+          },
+          {
+            "code": "212  function Filters() { … }"
+          },
+          {
+            "code": "488  function EditSpool() { … }"
+          },
+          {
+            "code": "812  export default InventoryView;",
+            "mark": "bad"
+          }
+        ],
+        "message": "✗ store/InventoryView.tsx: 812 lines, limit 500: split it"
+      },
+      "pass": {
+        "file": "store/inventory/",
+        "lines": [
+          {
+            "code": "InventoryView.tsx",
+            "note": "184 lines",
+            "mark": "ok"
+          },
+          {
+            "code": "Filters.tsx",
+            "note": "142 lines",
+            "mark": "ok"
+          },
+          {
+            "code": "EditSpool.tsx",
+            "note": "201 lines",
+            "mark": "ok"
+          }
+        ]
+      }
+    },
+    {
+      "name": "A function stays short",
+      "limit": "≤ 100 lines",
+      "description": "A screen lists its parts; the state lives in a hook, the pieces in components.",
+      "fail": {
+        "file": "DeployView.tsx",
+        "lines": [
+          {
+            "code": "export function DeployView() {",
+            "note": "214 lines",
+            "mark": "bad"
+          },
+          {
+            "code": "  const [runs, setRuns] = useState([]);"
+          },
+          {
+            "code": "  useEffect(() => { … }, []);",
+            "note": "40 lines"
+          },
+          {
+            "code": "  const rows = targets.map(…);",
+            "note": "60 lines"
+          },
+          {
+            "code": "  return <section>…</section>;",
+            "note": "90 lines"
+          },
+          {
+            "code": "}"
+          }
+        ],
+        "message": "✗ DeployView.tsx: 1 function over the length limit: DeployView (line 12, 214 lines)"
+      },
+      "pass": {
+        "file": "DeployView.tsx",
+        "lines": [
+          {
+            "code": "export function DeployView() {",
+            "note": "8 lines",
+            "mark": "ok"
+          },
+          {
+            "code": "  const { tab, setTab, runs } = useDeploys();"
+          },
+          {
+            "code": "  return ("
+          },
+          {
+            "code": "    <section><DeployTabs tab={tab} onPick={setTab} />"
+          },
+          {
+            "code": "      <RunList runs={runs} /></section>"
+          },
+          {
+            "code": "  );"
+          },
+          {
+            "code": "}"
+          }
+        ]
+      }
+    },
+    {
+      "name": "A function stays simple",
+      "limit": "complexity ≤ 20",
+      "description": "1, plus one for every if, loop, case, catch, ?:, &&, || and ??. Each is a path to test; a table of cases has none.",
+      "fail": {
+        "file": "runBadge.ts",
+        "lines": [
+          {
+            "code": "function badge(run) {",
+            "note": "complexity 23",
+            "mark": "bad"
+          },
+          {
+            "code": "  if (run.state === \"running\") {"
+          },
+          {
+            "code": "    if (run.step && run.total) return progress(run);"
+          },
+          {
+            "code": "    return run.eta ? left(run.eta) : \"Running\";"
+          },
+          {
+            "code": "  } else if (run.state === \"failed\") { …"
+          },
+          {
+            "code": "",
+            "note": "and 17 more if, &&, ?: and ??"
+          }
+        ],
+        "message": "✗ runBadge.ts: 1 function over the complexity limit: badge (line 4, complexity 23)"
+      },
+      "pass": {
+        "file": "runBadge.ts",
+        "lines": [
+          {
+            "code": "const BADGE = {"
+          },
+          {
+            "code": "  running: (r) => progress(r),"
+          },
+          {
+            "code": "  failed: (r) => failure(r.code),"
+          },
+          {
+            "code": "  done: () => \"Done\","
+          },
+          {
+            "code": "};"
+          },
+          {
+            "code": "function badge(run) {",
+            "note": "complexity 2",
+            "mark": "ok"
+          },
+          {
+            "code": "  return BADGE[run.state]?.(run) ?? \"Waiting\";"
+          },
+          {
+            "code": "}"
+          }
+        ]
+      }
+    },
+    {
+      "name": "No import cycles",
+      "limit": "0 new",
+      "description": "Two files that import each other load half-finished. Move what both need into a third. A type-only import or import() is fine.",
+      "fail": {
+        "file": "store/",
+        "lines": [
+          {
+            "code": "",
+            "note": "App.tsx"
+          },
+          {
+            "code": "import { InventoryView } from \"./InventoryView\";"
+          },
+          {
+            "code": "export const useStore = create(…);"
+          },
+          {
+            "code": ""
+          },
+          {
+            "code": "",
+            "note": "InventoryView.tsx"
+          },
+          {
+            "code": "import { useStore } from \"./App\";",
+            "note": "back again",
+            "mark": "bad"
+          }
+        ],
+        "message": "✗ an import cycle: store/App.tsx ⇄ store/InventoryView.tsx"
+      },
+      "pass": {
+        "file": "store/",
+        "lines": [
+          {
+            "code": "",
+            "note": "useStore.ts"
+          },
+          {
+            "code": "export const useStore = create(…);",
+            "mark": "ok"
+          },
+          {
+            "code": ""
+          },
+          {
+            "code": "",
+            "note": "App.tsx and InventoryView.tsx"
+          },
+          {
+            "code": "import { useStore } from \"./useStore\";",
+            "mark": "ok"
+          }
+        ]
+      }
+    },
+    {
+      "name": "No file nothing uses",
+      "limit": "0 new",
+      "description": "Used means imported, started by a script, launchd, nginx or HTML, named in JSON or a README, or a test or config. A changelog note keeps nothing alive.",
+      "fail": {
+        "file": "app/lib/timeLeft.ts",
+        "lines": [
+          {
+            "code": "export function timeLeft(ms) { … }",
+            "mark": "bad"
+          },
+          {
+            "code": ""
+          },
+          {
+            "code": "",
+            "note": "imported by: nothing"
+          },
+          {
+            "code": "",
+            "note": "started by: nothing"
+          }
+        ],
+        "message": "✗ a file nothing imports or starts: app/lib/timeLeft.ts"
+      },
+      "pass": {
+        "file": "app/components/RunRow.tsx",
+        "lines": [
+          {
+            "code": "import { timeLeft } from \"../lib/timeLeft\";",
+            "mark": "ok"
+          },
+          {
+            "code": ""
+          },
+          {
+            "code": "",
+            "note": "or delete the file: git keeps it"
+          }
+        ]
+      }
+    },
+    {
+      "name": "No dependency nothing uses",
+      "limit": "0 new",
+      "description": "A package listed in package.json is named by a file of its package, or run by one of its scripts. TypeScript and React count by themselves.",
+      "fail": {
+        "file": "package.json",
+        "lines": [
+          {
+            "code": "\"dependencies\": {"
+          },
+          {
+            "code": "  \"chart.js\": \"catalog:\","
+          },
+          {
+            "code": "  \"lucide-react\": \"catalog:\",",
+            "note": "no file imports it",
+            "mark": "bad"
+          },
+          {
+            "code": "  \"react\": \"catalog:\""
+          },
+          {
+            "code": "}"
+          }
+        ],
+        "message": "✗ a dependency nothing names: lucide-react"
+      },
+      "pass": {
+        "file": "package.json",
+        "lines": [
+          {
+            "code": "\"dependencies\": {"
+          },
+          {
+            "code": "  \"chart.js\": \"catalog:\","
+          },
+          {
+            "code": "  \"react\": \"catalog:\"",
+            "note": "lucide-react removed",
+            "mark": "ok"
+          },
+          {
+            "code": "}"
+          }
+        ]
+      }
+    }
+  ]
+}
